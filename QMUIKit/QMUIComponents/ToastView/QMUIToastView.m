@@ -74,9 +74,10 @@ static NSMutableArray <QMUIToastView *> *kToastViews = nil;
     self.backgroundColor = UIColorClear;
     self.layer.allowsGroupOpacity = NO;
     
-    _maskView = [[UIView alloc] init];
-    self.maskView.backgroundColor = UIColorClear;
-    [self addSubview:self.maskView];
+    UIView* maskView = [[UIView alloc] init];
+    maskView.backgroundColor = UIColorClear;
+    [self addSubview:maskView];
+    self.maskView = maskView;
     
     [self registerNotifications];
 }
