@@ -123,8 +123,13 @@ NSString *const kShouldFixTitleViewBugKey = @"kShouldFixTitleViewBugKey";
 - (UIView *)qmui_contentView {
     if (@available(iOS 26.0, *)) {
         // 如果 contentView 已经被构造出来，则通过遍历 view 层级树的方式获取
-        UIView *contentView = [self.subviews qmui_firstMatchWithBlock:^BOOL(__kindof UIView * _Nonnull item) {
-            return [NSStringFromClass(item.class) containsString:@"ContentView"];
+        __block UIView *contentView = nil;
+        
+        [self.subviews enumerateObjectsUsingBlock:^(__kindof UIView * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
+            if([NSStringFromClass(obj.class) containsString:@"ContentView"]) {
+                contentView = obj;
+                *stop = YES;
+            }
         }];
         if (contentView) return contentView;
         
