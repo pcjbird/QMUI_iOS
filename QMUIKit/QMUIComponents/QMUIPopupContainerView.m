@@ -560,9 +560,32 @@
         [self initPopupContainerViewWindowIfNeeded];
         
         QMUICommonViewController *viewController = (QMUICommonViewController *)self.popupWindow.rootViewController;
-        viewController.supportedOrientationMask = [QMUIHelper visibleViewController].supportedInterfaceOrientations;
+        UIViewController *visibleVC = [QMUIHelper visibleViewController];
+        if (visibleVC) {
+            viewController.supportedOrientationMask = visibleVC.supportedInterfaceOrientations;
+        } else {
+            viewController.supportedOrientationMask = UIInterfaceOrientationMaskPortrait;
+        }
         
-        self.previousKeyWindow = UIApplication.sharedApplication.keyWindow;
+        UIWindow *keyWindow = nil;
+        if (@available(iOS 13.0, *)) {
+            for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+                if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:[UIWindowScene class]]) {
+                    UIWindowScene *windowScene = (UIWindowScene *)scene;
+                    for (UIWindow *window in windowScene.windows) {
+                        if (window.isKeyWindow) {
+                            keyWindow = window;
+                            break;
+                        }
+                    }
+                    if (keyWindow) break;
+                }
+            }
+        }
+        if (!keyWindow) {
+            keyWindow = UIApplication.sharedApplication.keyWindow;
+        }
+        self.previousKeyWindow = keyWindow;
         [self.popupWindow makeKeyAndVisible];
         
         isShowingByWindowMode = YES;
@@ -638,7 +661,26 @@
 - (void)hideCompletionWithWindowMode:(BOOL)windowMode completion:(void (^)(BOOL))completion {
     if (windowMode) {
         // 恢复 keyWindow 之前做一下检查，避免类似问题 https://github.com/Tencent/QMUI_iOS/issues/90
-        if (UIApplication.sharedApplication.keyWindow == self.popupWindow) {
+        UIWindow *currentKeyWindow = nil;
+        if (@available(iOS 13.0, *)) {
+            for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+                if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:[UIWindowScene class]]) {
+                    UIWindowScene *windowScene = (UIWindowScene *)scene;
+                    for (UIWindow *window in windowScene.windows) {
+                        if (window.isKeyWindow) {
+                            currentKeyWindow = window;
+                            break;
+                        }
+                    }
+                    if (currentKeyWindow) break;
+                }
+            }
+        }
+        if (!currentKeyWindow) {
+            currentKeyWindow = UIApplication.sharedApplication.keyWindow;
+        }
+        
+        if (currentKeyWindow == self.popupWindow) {
             [self.previousKeyWindow makeKeyWindow];
         }
         
@@ -675,7 +717,22 @@
 
 - (void)initPopupContainerViewWindowIfNeeded {
     if (!self.popupWindow) {
-        self.popupWindow = [[QMUIPopupContainerViewWindow alloc] init];
+        UIWindowScene *windowScene = nil;
+        if (@available(iOS 13.0, *)) {
+            for (UIScene *scene in UIApplication.sharedApplication.connectedScenes) {
+                if (scene.activationState == UISceneActivationStateForegroundActive && [scene isKindOfClass:[UIWindowScene class]]) {
+                    windowScene = (UIWindowScene *)scene;
+                    break;
+                }
+            }
+        }
+        
+        if (windowScene) {
+            self.popupWindow = [[QMUIPopupContainerViewWindow alloc] initWithWindowScene:windowScene];
+        } else {
+            self.popupWindow = [[QMUIPopupContainerViewWindow alloc] init];
+        }
+        
         self.popupWindow.qmui_capturesStatusBarAppearance = NO;
         self.popupWindow.backgroundColor = UIColorClear;
         self.popupWindow.windowLevel = UIWindowLevelQMUIAlertView;
@@ -686,8 +743,13 @@
         } else {
             viewController.view.backgroundColor = UIColorClear;
         }
-        viewController.supportedOrientationMask = [QMUIHelper visibleViewController].supportedInterfaceOrientations;
-        self.popupWindow.rootViewController = viewController;// 利用 rootViewController 来管理横竖屏
+        UIViewController *visibleVC = [QMUIHelper visibleViewController];
+        if (visibleVC) {
+            viewController.supportedOrientationMask = visibleVC.supportedInterfaceOrientations;
+        } else {
+            viewController.supportedOrientationMask = UIInterfaceOrientationMaskPortrait;
+        }
+        self.popupWindow.rootViewController = viewController;
         [self.popupWindow.rootViewController.view addSubview:self];
     }
 }
